@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { prefersReducedMotion } from '../hooks';
+import { prefersReducedMotion } from '../lib/dom';
 
 const HEX = '0123456789abcdef';
 const CELL_W = 15;

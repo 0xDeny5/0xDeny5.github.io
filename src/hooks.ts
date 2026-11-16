@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent, type RefObject } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { prefersReducedMotion } from './lib/dom';
 
 /**
  * Media query as state. The server (and hydration) always sees `serverValue`, then the
@@ -39,18 +40,6 @@ export function useLoop(length: number, active: boolean, stepMs: number, holdMs:
   return step;
 }
 
-export function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-/** Feeds the pointer position to the `.spotlight` CSS gradient. */
-export function trackPointer(e: PointerEvent<HTMLElement>): void {
-  const el = e.currentTarget;
-  const rect = el.getBoundingClientRect();
-  el.style.setProperty('--mx', `${e.clientX - rect.left}px`);
-  el.style.setProperty('--my', `${e.clientY - rect.top}px`);
-}
-
 /**
  * Adds `.is-visible` to every `[data-reveal]` element once it scrolls into view — including
  * elements mounted later (e.g. inline visuals that appear when the window narrows), which a
@@ -61,30 +50,29 @@ export function useRevealOnScroll(): void {
   useEffect(() => {
     document.documentElement.classList.add('js');
 
+    const PENDING = '[data-reveal]:not(.is-visible)';
     const collect = (root: ParentNode): HTMLElement[] => {
-      const found = Array.from(root.querySelectorAll<HTMLElement>('[data-reveal]:not(.is-visible)'));
-      if (root instanceof HTMLElement && root.matches('[data-reveal]:not(.is-visible)')) found.push(root);
+      const found = Array.from(root.querySelectorAll<HTMLElement>(PENDING));
+      if (root instanceof HTMLElement && root.matches(PENDING)) found.push(root);
       return found;
     };
 
-    const reduced = prefersReducedMotion() || !('IntersectionObserver' in window);
-    const observer = reduced
-      ? null
-      : new IntersectionObserver(
-          (entries) => {
-            for (const entry of entries) {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible');
+    const reveal = (el: Element) => el.classList.add('is-visible');
+    const observer =
+      prefersReducedMotion() || !('IntersectionObserver' in window)
+        ? null
+        : new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                reveal(entry.target);
                 observer?.unobserve(entry.target);
               }
-            }
-          },
-          { rootMargin: '0px 0px -10% 0px', threshold: 0.05 },
-        );
+            },
+            { rootMargin: '0px 0px -10% 0px', threshold: 0.05 },
+          );
 
-    const track = (els: HTMLElement[]) =>
-      els.forEach((el) => (observer ? observer.observe(el) : el.classList.add('is-visible')));
-
+    const track = (els: HTMLElement[]) => els.forEach((el) => (observer ? observer.observe(el) : reveal(el)));
     track(collect(document));
 
     const mutations = new MutationObserver((records) => {
@@ -108,7 +96,6 @@ export function useActiveSection(ids: readonly string[], rootMargin = '-40% 0px 
   const [active, setActive] = useState<string | null>(null);
 
   useEffect(() => {
-    const sections = ids.map((id) => document.getElementById(id)).filter((el): el is HTMLElement => el !== null);
     const observer = new IntersectionObserver(
       (entries) => {
         const hit = entries.find((e) => e.isIntersecting);
@@ -116,7 +103,10 @@ export function useActiveSection(ids: readonly string[], rootMargin = '-40% 0px 
       },
       { rootMargin },
     );
-    sections.forEach((el) => observer.observe(el));
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    }
     return () => observer.disconnect();
   }, [ids, rootMargin]);
 
@@ -188,8 +178,7 @@ export function useScramble<T extends HTMLElement>(
           const p = Math.min(1, (now - start) / duration);
           const settled = Math.floor(p * text.length);
           let next = text.slice(0, settled);
-          for (let i = settled; i < text.length; i++) {
-            const ch = text[i] ?? '';
+          for (const ch of text.slice(settled)) {
             next += only.test(ch) ? glyphs[Math.floor(Math.random() * glyphs.length)] : ch;
           }
           setOutput(next);
@@ -209,7 +198,7 @@ export function useScramble<T extends HTMLElement>(
   return [ref, output];
 }
 
-/** Pulls an element slightly toward the pointer while hovered. */
+/** Pulls an element slightly toward the pointer while hovered (mouse only, motion allowed). */
 export function useMagnetic<T extends HTMLElement>(strength = 0.25): RefObject<T | null> {
   const ref = useRef<T>(null);
 
@@ -217,7 +206,7 @@ export function useMagnetic<T extends HTMLElement>(strength = 0.25): RefObject<T
     const el = ref.current;
     if (!el || prefersReducedMotion() || !window.matchMedia('(hover: hover)').matches) return;
 
-    const onMove = (e: globalThis.PointerEvent) => {
+    const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
       const x = (e.clientX - (r.left + r.width / 2)) * strength;
       const y = (e.clientY - (r.top + r.height / 2)) * strength;
@@ -238,7 +227,7 @@ export function useMagnetic<T extends HTMLElement>(strength = 0.25): RefObject<T
 }
 
 /** True once the element has been at least `amount` visible. Stays true. */
-export function useSeen<T extends HTMLElement>(amount = 0.3): [RefObject<T | null>, boolean] {
+export function useSeen<T extends HTMLElement>(amount = 0.4): [RefObject<T | null>, boolean] {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
 
@@ -247,10 +236,9 @@ export function useSeen<T extends HTMLElement>(amount = 0.3): [RefObject<T | nul
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry?.isIntersecting) {
-          setSeen(true);
-          observer.disconnect();
-        }
+        if (!entry?.isIntersecting) return;
+        setSeen(true);
+        observer.disconnect();
       },
       { threshold: amount },
     );
@@ -259,4 +247,52 @@ export function useSeen<T extends HTMLElement>(amount = 0.3): [RefObject<T | nul
   }, [amount]);
 
   return [ref, seen];
+}
+
+let scrollLocks = 0;
+
+/**
+ * Locks page scroll while `active`. Ref-counted, so overlapping overlays (mobile menu and command
+ * palette) don't unlock the page under each other.
+ */
+export function useBodyScrollLock(active: boolean): void {
+  useEffect(() => {
+    if (!active) return;
+    scrollLocks += 1;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      scrollLocks -= 1;
+      if (scrollLocks === 0) document.body.style.overflow = '';
+    };
+  }, [active]);
+}
+
+export type DismissReason = 'escape' | 'outside';
+
+/**
+ * While `active`, calls `onDismiss` on Escape and — when `ref` is given — on a pointer press
+ * outside that element. The latest `onDismiss` is always used without re-subscribing.
+ */
+export function useDismiss(
+  active: boolean,
+  onDismiss: (reason: DismissReason) => void,
+  ref?: RefObject<HTMLElement | null>,
+): void {
+  const dismiss = useEffectEvent(onDismiss);
+
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismiss('escape');
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (ref && !ref.current?.contains(e.target as Node)) dismiss('outside');
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [active, ref]);
 }

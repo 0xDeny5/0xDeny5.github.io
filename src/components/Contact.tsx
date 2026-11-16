@@ -1,16 +1,19 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { links, openTo, profile } from '../content';
-import { useMagnetic } from '../hooks';
+import { useEffect, useRef, useState, type ComponentType, type SVGProps } from 'react';
+import { channels, links, openTo, profile, type ChannelId } from '../content';
+import { useDismiss, useMagnetic } from '../hooks';
+import { copyText, shouldOpenAbove } from '../lib/dom';
+import { EASE } from '../lib/motion';
+import { cssVars } from '../lib/style';
 import { ArrowUpRightIcon, CheckIcon, CopyIcon, GitHubIcon, LinkedInIcon, MailIcon, StackOverflowIcon, TelegramIcon } from './Icons';
-import { SectionHead } from './SectionHead';
+import { Section } from './Section';
 
-const CHANNELS = [
-  { label: 'LinkedIn', handle: 'in/denys-rybkin', href: links.linkedin, Icon: LinkedInIcon },
-  { label: 'Telegram', handle: '@OxDeny5', href: links.telegram, Icon: TelegramIcon },
-  { label: 'GitHub', handle: '0xDeny5', href: links.github, Icon: GitHubIcon },
-  { label: 'Stack Overflow', handle: 'Denys Rybkin', href: links.stackoverflow, Icon: StackOverflowIcon },
-] as const;
+const CHANNEL_ICONS: Record<ChannelId, ComponentType<SVGProps<SVGSVGElement>>> = {
+  linkedin: LinkedInIcon,
+  telegram: TelegramIcon,
+  github: GitHubIcon,
+  stackoverflow: StackOverflowIcon,
+};
 
 const to = encodeURIComponent(profile.email);
 
@@ -24,6 +27,7 @@ const COMPOSE = [
 
 /** Approximate rendered height of the compose menu, used to decide whether it fits below. */
 const COMPOSE_MENU_HEIGHT = 230;
+const COPIED_TOAST_MS = 2000;
 
 export function Contact() {
   const [copied, setCopied] = useState(false);
@@ -34,147 +38,137 @@ export function Contact() {
 
   useEffect(() => {
     if (!copied) return;
-    const t = window.setTimeout(() => setCopied(false), 2000);
+    const t = window.setTimeout(() => setCopied(false), COPIED_TOAST_MS);
     return () => window.clearTimeout(t);
   }, [copied]);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-        mailRef.current?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuOpen, mailRef]);
+  useDismiss(
+    menuOpen,
+    (reason) => {
+      setMenuOpen(false);
+      if (reason === 'escape') mailRef.current?.focus();
+    },
+    wrapRef,
+  );
 
-  // Open upwards when there isn't room for the menu below the address (it sits near the page bottom).
   const toggleMenu = () => {
+    // The address sits near the page bottom: open upwards when the menu wouldn't fit below it.
     if (!menuOpen && mailRef.current) {
-      const rect = mailRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setMenuAbove(spaceBelow < COMPOSE_MENU_HEIGHT && rect.top > spaceBelow);
+      setMenuAbove(shouldOpenAbove(mailRef.current.getBoundingClientRect(), window.innerHeight, COMPOSE_MENU_HEIGHT));
     }
-    setMenuOpen((v) => !v);
+    setMenuOpen((open) => !open);
   };
 
   const copyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText(profile.email);
-      setCopied(true);
-    } catch {
-      window.location.href = links.email;
-    }
     setMenuOpen(false);
+    if (await copyText(profile.email)) setCopied(true);
+    else window.location.assign(links.email);
   };
 
+  const offsetY = menuAbove ? 6 : -6;
+
   return (
-    <section id="contact" className="section contact" aria-labelledby="contact-title">
-      <div className="container">
-        <SectionHead index="05" label="Contact" id="contact-title">
+    <Section
+      id="contact"
+      title={
+        <>
           Building something that <em>moves money</em>? Let&rsquo;s talk.
-        </SectionHead>
+        </>
+      }
+    >
+      <div className="contact__grid">
+        <div className="contact__main" data-reveal>
+          <p className="contact__lede">
+            I&rsquo;m open to senior and lead engineering roles, and to focused contract work on banking, payments, custody and smart
+            contracts.
+          </p>
 
-        <div className="contact__grid">
-          <div className="contact__main" data-reveal>
-            <p className="contact__lede">
-              I&rsquo;m open to senior and lead engineering roles, and to focused contract work on banking, payments,
-              custody and smart contracts.
-            </p>
+          <dl className="open-to">
+            {openTo.map((row) => (
+              <div key={row.label}>
+                <dt className="mono">{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
 
-            <dl className="open-to">
-              {openTo.map((row) => (
-                <div key={row.label}>
-                  <dt className="mono">{row.label}</dt>
-                  <dd>{row.value}</dd>
-                </div>
-              ))}
-            </dl>
+          <div className="contact__mail" ref={wrapRef}>
+            <button
+              ref={mailRef}
+              type="button"
+              className="contact__email"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls="compose-menu"
+              onClick={toggleMenu}
+            >
+              {profile.email}
+            </button>
+            <button type="button" className="icon-btn" onClick={copyEmail} aria-label={copied ? 'Email copied' : 'Copy email address'}>
+              {copied ? <CheckIcon /> : <CopyIcon />}
+            </button>
+            <span className={copied ? 'contact__toast mono is-shown' : 'contact__toast mono'} aria-live="polite">
+              {copied ? 'Copied to clipboard' : ''}
+            </span>
 
-            <div className="contact__mail" ref={wrapRef}>
-              <button
-                ref={mailRef}
-                type="button"
-                className="contact__email"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-controls="compose-menu"
-                onClick={toggleMenu}
-              >
-                {profile.email}
-              </button>
-              <button type="button" className="icon-btn" onClick={copyEmail} aria-label={copied ? 'Email copied' : 'Copy email address'}>
-                {copied ? <CheckIcon /> : <CopyIcon />}
-              </button>
-              <span className={`contact__toast mono ${copied ? 'is-shown' : ''}`} aria-live="polite">
-                {copied ? 'Copied to clipboard' : ''}
-              </span>
-
-              <AnimatePresence>
-                {menuOpen && (
-                  <motion.ul
-                    id="compose-menu"
-                    className={`compose ${menuAbove ? 'compose--above' : ''}`}
-                    role="menu"
-                    aria-label="Write an email with"
-                    initial={{ opacity: 0, y: menuAbove ? 6 : -6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: menuAbove ? 6 : -6, scale: 0.98 }}
-                    transition={{ duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
-                  >
-                    <li className="compose__title mono" role="presentation">
-                      Write with
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.ul
+                  id="compose-menu"
+                  className={menuAbove ? 'compose compose--above' : 'compose'}
+                  role="menu"
+                  aria-label="Write an email with"
+                  initial={{ opacity: 0, y: offsetY, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: offsetY, scale: 0.98 }}
+                  transition={{ duration: 0.18, ease: EASE }}
+                >
+                  <li className="compose__title mono" role="presentation">
+                    Write with
+                  </li>
+                  {COMPOSE.map((c) => (
+                    <li key={c.label} role="none">
+                      <a
+                        role="menuitem"
+                        className="compose__item"
+                        href={c.href}
+                        {...(c.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <MailIcon width={16} height={16} />
+                        <span>{c.label}</span>
+                        {c.external && <ArrowUpRightIcon width={14} height={14} className="compose__ext" />}
+                      </a>
                     </li>
-                    {COMPOSE.map((c) => (
-                      <li key={c.label} role="none">
-                        <a
-                          role="menuitem"
-                          className="compose__item"
-                          href={c.href}
-                          {...(c.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          <MailIcon width={16} height={16} />
-                          <span>{c.label}</span>
-                          {c.external && <ArrowUpRightIcon width={14} height={14} className="compose__ext" />}
-                        </a>
-                      </li>
-                    ))}
-                    <li role="none">
-                      <button type="button" role="menuitem" className="compose__item" onClick={copyEmail}>
-                        <CopyIcon width={16} height={16} />
-                        <span>Copy address</span>
-                      </button>
-                    </li>
-                  </motion.ul>
-                )}
-              </AnimatePresence>
-            </div>
+                  ))}
+                  <li role="none">
+                    <button type="button" role="menuitem" className="compose__item" onClick={copyEmail}>
+                      <CopyIcon width={16} height={16} />
+                      <span>Copy address</span>
+                    </button>
+                  </li>
+                </motion.ul>
+              )}
+            </AnimatePresence>
           </div>
+        </div>
 
-          <ul className="channels" data-reveal style={{ '--i': 1 } as CSSProperties}>
-            {CHANNELS.map(({ label, handle, href, Icon }) => (
-              <li key={label}>
-                <a className="channel" href={href} target="_blank" rel="noopener noreferrer">
+        <ul className="channels" data-reveal style={cssVars({ '--i': 1 })}>
+          {channels.map((channel) => {
+            const Icon = CHANNEL_ICONS[channel.id];
+            return (
+              <li key={channel.id}>
+                <a className="channel" href={channel.href} target="_blank" rel="noopener noreferrer">
                   <Icon width={18} height={18} />
-                  <span className="channel__label">{label}</span>
-                  <span className="channel__handle mono">{handle}</span>
+                  <span className="channel__label">{channel.label}</span>
+                  <span className="channel__handle mono">{channel.handle}</span>
                   <ArrowUpRightIcon width={16} height={16} className="channel__arrow" />
                 </a>
               </li>
-            ))}
-          </ul>
-        </div>
+            );
+          })}
+        </ul>
       </div>
-    </section>
+    </Section>
   );
 }

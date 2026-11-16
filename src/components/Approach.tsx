@@ -2,55 +2,57 @@ import { motion, useMotionValueEvent, useScroll, useSpring } from 'motion/react'
 import { useRef, useState } from 'react';
 import { approach } from '../content';
 import { useMediaQuery } from '../hooks';
-import { SectionHead } from './SectionHead';
+import { pad } from '../lib/format';
+import { Section } from './Section';
+
+/** Index of the last step the drawn line has reached at scroll progress `p` (0…1); -1 before the first. */
+export function reachedStep(p: number, steps: number): number {
+  // A small lead so a step lights up as the line touches it, not once it has fully passed.
+  return Math.min(steps - 1, Math.floor(p * (steps - 1) + 0.02));
+}
 
 /**
  * How I work, as a pipeline. The connecting line draws itself with scroll progress and each
  * step lights up as the line reaches it.
  */
 export function Approach() {
-  const trackRef = useRef<HTMLOListElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ['start 80%', 'end 45%'] });
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, restDelta: 0.001 });
   const [reached, setReached] = useState(-1);
   const wide = useMediaQuery('(min-width: 960px)');
 
-  useMotionValueEvent(progress, 'change', (p) => {
-    const next = Math.floor(p * (approach.length - 1) + 0.02);
-    setReached((prev) => (prev === next ? prev : next));
-  });
+  useMotionValueEvent(progress, 'change', (p) => setReached(reachedStep(p, approach.length)));
 
   return (
-    <section id="approach" className="section" aria-labelledby="approach-title">
-      <div className="container">
-        <SectionHead
-          index="03"
-          label="Approach"
-          id="approach-title"
-          aside={
-            <p className="small">
-              Shift-left by default: quality and security are designed in from the first commit, not inspected in before
-              release.
-            </p>
-          }
-        >
+    <Section
+      id="approach"
+      title={
+        <>
           How I build systems that <em>hold money</em>.
-        </SectionHead>
-
-        <ol className="approach" ref={trackRef}>
-          <span className="approach__track" aria-hidden="true">
-            <motion.span className="approach__line" style={wide ? { scaleX: progress } : { scaleY: progress }} />
-          </span>
+        </>
+      }
+      aside={
+        <p className="small">
+          Shift-left by default: quality and security are designed in from the first commit, not inspected in before release.
+        </p>
+      }
+    >
+      <div className="approach" ref={trackRef}>
+        <span className="approach__track" aria-hidden="true">
+          <motion.span className="approach__line" style={wide ? { scaleX: progress } : { scaleY: progress }} />
+        </span>
+        <ol className="approach__steps">
           {approach.map((step, i) => (
-            <li key={step.title} className={`approach__step ${i <= reached ? 'is-reached' : ''}`}>
+            <li key={step.title} className={i <= reached ? 'approach__step is-reached' : 'approach__step'}>
               <span className="approach__node" aria-hidden="true" />
-              <span className="approach__no mono">{String(i + 1).padStart(2, '0')}</span>
+              <span className="approach__no mono">{pad(i + 1)}</span>
               <h3 className="approach__title">{step.title}</h3>
               <p className="approach__body">{step.body}</p>
             </li>
           ))}
         </ol>
       </div>
-    </section>
+    </Section>
   );
 }

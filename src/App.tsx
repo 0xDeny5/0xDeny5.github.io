@@ -11,11 +11,8 @@ import { Nav } from './components/Nav';
 import { Ticker } from './components/Ticker';
 import { Toolbox } from './components/Toolbox';
 import { useRevealOnScroll } from './hooks';
+import { resolveShortcut } from './lib/shortcuts';
 import { toggleTheme } from './theme';
-
-function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
-}
 
 export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -23,16 +20,18 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      } else if (!isTyping(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (e.key === '/') {
+      switch (resolveShortcut(e)) {
+        case 'toggle-palette':
+          e.preventDefault();
+          setPaletteOpen((open) => !open);
+          break;
+        case 'open-palette':
           e.preventDefault();
           setPaletteOpen(true);
-        } else if (e.key.toLowerCase() === 't') {
+          break;
+        case 'toggle-theme':
           toggleTheme();
-        }
+          break;
       }
     };
     window.addEventListener('keydown', onKey);
