@@ -11,7 +11,8 @@ Hosted on GitHub Pages; no server to run or pay for.
 ```bash
 pnpm install
 pnpm dev        # http://localhost:5173
-pnpm check      # lint + typecheck + build + prerender
+pnpm test       # unit and integration tests (Vitest + jsdom)
+pnpm check      # lint + tests + typecheck + build + prerender
 pnpm preview    # serve the production build from dist/
 ```
 
@@ -24,8 +25,8 @@ named exactly `0xDeny5.github.io`.
 
 1. Create a public repository named `0xDeny5.github.io` and push this folder to its `main` branch.
 2. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): lint, build, deploy.
-   Pull requests only lint and build.
+3. Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): lint, test, build, deploy.
+   Pull requests only lint, test and build.
 
 ### Custom domain (optional)
 
