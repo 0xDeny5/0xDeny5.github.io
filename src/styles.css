@@ -2630,6 +2630,12 @@ em {
   transform-origin: top left;
 }
 
+.compose--above {
+  top: auto;
+  bottom: calc(100% + 10px);
+  transform-origin: bottom left;
+}
+
 .compose__title {
   padding: 8px 10px 6px;
   font-size: 10.5px;

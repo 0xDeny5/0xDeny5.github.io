@@ -22,9 +22,13 @@ const COMPOSE = [
   { label: 'Mail app', href: links.email, external: false },
 ] as const;
 
+/** Approximate rendered height of the compose menu, used to decide whether it fits below. */
+const COMPOSE_MENU_HEIGHT = 230;
+
 export function Contact() {
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAbove, setMenuAbove] = useState(false);
   const mailRef = useMagnetic<HTMLButtonElement>(0.12);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +56,16 @@ export function Contact() {
       document.removeEventListener('keydown', onKey);
     };
   }, [menuOpen, mailRef]);
+
+  // Open upwards when there isn't room for the menu below the address (it sits near the page bottom).
+  const toggleMenu = () => {
+    if (!menuOpen && mailRef.current) {
+      const rect = mailRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setMenuAbove(spaceBelow < COMPOSE_MENU_HEIGHT && rect.top > spaceBelow);
+    }
+    setMenuOpen((v) => !v);
+  };
 
   const copyEmail = async () => {
     try {
@@ -94,7 +108,7 @@ export function Contact() {
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 aria-controls="compose-menu"
-                onClick={() => setMenuOpen((v) => !v)}
+                onClick={toggleMenu}
               >
                 {profile.email}
               </button>
@@ -109,12 +123,12 @@ export function Contact() {
                 {menuOpen && (
                   <motion.ul
                     id="compose-menu"
-                    className="compose"
+                    className={`compose ${menuAbove ? 'compose--above' : ''}`}
                     role="menu"
                     aria-label="Write an email with"
-                    initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                    initial={{ opacity: 0, y: menuAbove ? 6 : -6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    exit={{ opacity: 0, y: menuAbove ? 6 : -6, scale: 0.98 }}
                     transition={{ duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
                   >
                     <li className="compose__title mono" role="presentation">
