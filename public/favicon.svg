@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .bg { fill: #f2efe8; stroke: #141412; }
+    .d { fill: #141412; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0e0d0b; stroke: #ece8df; }
+      .d { fill: #ece8df; }
+    }
+  </style>
+  <rect class="bg" x="3" y="3" width="58" height="58" rx="15" stroke-width="4"/>
+  <text x="32" y="42" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="-1.5"><tspan class="d">D</tspan><tspan fill="#ff4d0a">R</tspan></text>
+</svg>
