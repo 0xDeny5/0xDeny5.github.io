@@ -1,19 +1,14 @@
 import { AnimatePresence, motion, useScroll, useSpring } from 'motion/react';
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { profile } from '../content';
-import { useActiveSection, useLocalTime, useScrolled } from '../hooks';
+import { useState, useSyncExternalStore, type MouseEvent } from 'react';
+import { profile, sections } from '../content';
+import { useActiveSection, useBodyScrollLock, useDismiss, useLocalTime, useScrolled } from '../hooks';
+import { elementCenter, scrollToId } from '../lib/dom';
+import { pad } from '../lib/format';
+import { EASE, EASE_SWEEP } from '../lib/motion';
 import { toggleTheme } from '../theme';
 import { CloseIcon, MenuIcon, MoonIcon, SearchIcon, SunIcon } from './Icons';
 
-const NAV_ITEMS = [
-  { id: 'capabilities', label: 'Capabilities' },
-  { id: 'guarantees', label: 'Guarantees' },
-  { id: 'approach', label: 'Approach' },
-  { id: 'toolbox', label: 'Toolbox' },
-  { id: 'contact', label: 'Contact' },
-] as const;
-
-const SECTION_IDS = NAV_ITEMS.map((i) => i.id);
+const SECTION_IDS = sections.map((s) => s.id);
 
 const noopSubscribe = () => () => {};
 // Server renders ⌘; after hydration non-Apple platforms switch to Ctrl.
@@ -32,21 +27,23 @@ export function Nav({ onOpenPalette }: NavProps) {
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 40, restDelta: 0.001 });
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [menuOpen]);
+  useBodyScrollLock(menuOpen);
+  useDismiss(menuOpen, () => setMenuOpen(false));
+
+  // Body scroll is locked while the menu is open: close it first, then scroll.
+  const goFromMenu = (id: string) => (e: MouseEvent) => {
+    e.preventDefault();
+    setMenuOpen(false);
+    window.setTimeout(() => {
+      scrollToId(id);
+      history.replaceState(null, '', `#${id}`);
+    }, 50);
+  };
 
   return (
     <>
       <motion.div className="progress" style={{ scaleX: progress }} aria-hidden="true" />
-      <header className={`nav ${scrolled ? 'nav--scrolled' : ''}`}>
+      <header className={scrolled ? 'nav nav--scrolled' : 'nav'}>
         <div className="container nav__inner">
           <a href="#top" className="nav__brand" aria-label={`${profile.name} — back to top`}>
             <span className="nav__mark" aria-hidden="true">
@@ -55,22 +52,21 @@ export function Nav({ onOpenPalette }: NavProps) {
             <span className="nav__who">
               <span className="nav__name">{profile.name}</span>
               <span className="nav__clock mono">
-                <span className="nav__city">Vilnius </span>
-                {time ?? '--:--'}
+                {profile.city} {time ?? '--:--'}
               </span>
             </span>
           </a>
 
           <nav aria-label="Primary" className="nav__links">
-            {NAV_ITEMS.map((item, i) => (
+            {sections.map((s, i) => (
               <a
-                key={item.id}
-                href={`#${item.id}`}
-                className={active === item.id ? 'is-active' : undefined}
-                aria-current={active === item.id ? 'true' : undefined}
+                key={s.id}
+                href={`#${s.id}`}
+                className={active === s.id ? 'is-active' : undefined}
+                aria-current={active === s.id ? 'true' : undefined}
               >
-                <span className="nav__no mono">{String(i + 1).padStart(2, '0')}</span>
-                {item.label}
+                <span className="nav__no mono">{pad(i + 1)}</span>
+                {s.label}
               </a>
             ))}
           </nav>
@@ -86,10 +82,7 @@ export function Nav({ onOpenPalette }: NavProps) {
             <button
               type="button"
               className="icon-btn"
-              onClick={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                toggleTheme({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-              }}
+              onClick={(e) => toggleTheme(elementCenter(e.currentTarget))}
               aria-label="Toggle light or dark theme"
             >
               <SunIcon className="theme-icon theme-icon--sun" />
@@ -101,7 +94,7 @@ export function Nav({ onOpenPalette }: NavProps) {
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={() => setMenuOpen((open) => !open)}
             >
               {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -118,30 +111,19 @@ export function Nav({ onOpenPalette }: NavProps) {
             initial={{ clipPath: 'inset(0 0 100% 0)' }}
             animate={{ clipPath: 'inset(0 0 0% 0)' }}
             exit={{ clipPath: 'inset(0 0 100% 0)' }}
-            transition={{ duration: 0.45, ease: [0.7, 0, 0.2, 1] }}
+            transition={{ duration: 0.45, ease: EASE_SWEEP }}
           >
             <ol>
-              {NAV_ITEMS.map((item, i) => (
+              {sections.map((s, i) => (
                 <motion.li
-                  key={item.id}
+                  key={s.id}
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 + i * 0.05, duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+                  transition={{ delay: 0.15 + i * 0.05, duration: 0.4, ease: EASE }}
                 >
-                  <a
-                    href={`#${item.id}`}
-                    onClick={(e) => {
-                      // Body scroll is locked while the menu is open: close first, then scroll.
-                      e.preventDefault();
-                      setMenuOpen(false);
-                      window.setTimeout(() => {
-                        document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' });
-                        history.replaceState(null, '', `#${item.id}`);
-                      }, 50);
-                    }}
-                  >
-                    <span className="mono">{String(i + 1).padStart(2, '0')}</span>
-                    {item.label}
+                  <a href={`#${s.id}`} onClick={goFromMenu(s.id)}>
+                    <span className="mono">{pad(i + 1)}</span>
+                    {s.label}
                   </a>
                 </motion.li>
               ))}

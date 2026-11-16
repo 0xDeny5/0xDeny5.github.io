@@ -1,7 +1,8 @@
-import type { CSSProperties } from 'react';
 import { guarantees } from '../content';
-import { trackPointer } from '../hooks';
-import { SectionHead } from './SectionHead';
+import { trackPointer } from '../lib/dom';
+import { pad } from '../lib/format';
+import { cssVars, cx } from '../lib/style';
+import { Section } from './Section';
 
 /**
  * The correctness toolkit for money code. Cards stagger in; inside each, the example lines
@@ -9,44 +10,31 @@ import { SectionHead } from './SectionHead';
  */
 export function Guarantees() {
   return (
-    <section id="guarantees" className="section" aria-labelledby="guarantees-title">
-      <div className="container">
-        <SectionHead
-          index="02"
-          label="Guarantees"
-          id="guarantees-title"
-          aside={<p className="small">The non-negotiables behind every system above. Boring on purpose.</p>}
-        >
+    <Section
+      id="guarantees"
+      title={
+        <>
           Money code that never <em>double-spends</em>.
-        </SectionHead>
-
-        <ul className="guarantees">
-          {guarantees.map((g, i) => (
-            <li
-              key={g.term}
-              className="guarantee spotlight"
-              data-reveal
-              style={{ '--i': i % 3 } as CSSProperties}
-              onPointerMove={trackPointer}
-            >
-              <p className="guarantee__no mono">{String(i + 1).padStart(2, '0')}</p>
-              <h3 className="guarantee__term">{g.term}</h3>
-              <p className="guarantee__body">{g.body}</p>
-              <pre className="guarantee__example mono" aria-label={`Example: ${g.term}`}>
-                {g.example.map((line, l) => (
-                  <span
-                    key={line.text}
-                    className={`guarantee__line ${line.tone ? `is-${line.tone}` : ''}`}
-                    style={{ '--l': l } as CSSProperties}
-                  >
-                    {line.text}
-                  </span>
-                ))}
-              </pre>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+        </>
+      }
+      aside={<p className="small">The non-negotiables behind every system above. Boring on purpose.</p>}
+    >
+      <ul className="guarantees">
+        {guarantees.map((g, i) => (
+          <li key={g.term} className="guarantee spotlight" data-reveal style={cssVars({ '--i': i % 3 })} onPointerMove={trackPointer}>
+            <p className="guarantee__no mono">{pad(i + 1)}</p>
+            <h3 className="guarantee__term">{g.term}</h3>
+            <p className="guarantee__body">{g.body}</p>
+            <pre className="guarantee__example mono" aria-label={`Example: ${g.term}`}>
+              {g.example.map((line, l) => (
+                <span key={line.text} className={cx('guarantee__line', line.tone && `is-${line.tone}`)} style={cssVars({ '--l': l })}>
+                  {line.text}
+                </span>
+              ))}
+            </pre>
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }

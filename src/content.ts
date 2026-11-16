@@ -2,13 +2,11 @@
 
 export const profile = {
   name: 'Denys Rybkin',
-  firstName: 'Denys',
-  lastName: 'Rybkin',
-  handle: '0xDeny5',
   role: 'Full-stack engineer · Fintech & Blockchain',
   lede: 'Five years building software where a bug costs real money. Banking cores, payment integrations, crypto custody, smart contracts and the high-load services between them — TypeScript on Node.js at the core, Rust where it counts, React when it needs a face.',
   current:
     "Building a stock market analytics platform that checks whether analysts' predictions actually came true.",
+  city: 'Vilnius',
   location: 'Vilnius, Lithuania',
   timeZone: 'Europe/Vilnius',
   availability: 'Open to senior & lead roles',
@@ -22,6 +20,43 @@ export const links = {
   stackoverflow: 'https://stackoverflow.com/users/12368362/denys-rybkin',
   email: `mailto:${profile.email}`,
 } as const;
+
+/** Where to find me, in the order shown in Contact. */
+export type ChannelId = 'linkedin' | 'telegram' | 'github' | 'stackoverflow';
+
+export interface Channel {
+  id: ChannelId;
+  label: string;
+  handle: string;
+  href: string;
+}
+
+export const channels: readonly Channel[] = [
+  { id: 'linkedin', label: 'LinkedIn', handle: 'in/denys-rybkin', href: links.linkedin },
+  { id: 'telegram', label: 'Telegram', handle: '@OxDeny5', href: links.telegram },
+  { id: 'github', label: 'GitHub', handle: '0xDeny5', href: links.github },
+  { id: 'stackoverflow', label: 'Stack Overflow', handle: 'Denys Rybkin', href: links.stackoverflow },
+];
+
+/* ───────────── Page structure ───────────── */
+
+export type SectionId = 'capabilities' | 'guarantees' | 'approach' | 'toolbox' | 'contact';
+
+export interface Section {
+  id: SectionId;
+  label: string;
+  /** Extra words shown next to the label in the command palette. */
+  blurb?: string;
+}
+
+/** Sections in page order: drives the nav, section numbers, block hashes and the command palette. */
+export const sections: readonly Section[] = [
+  { id: 'capabilities', label: 'Capabilities', blurb: 'what I build' },
+  { id: 'guarantees', label: 'Guarantees', blurb: 'idempotency, ACID, sagas' },
+  { id: 'approach', label: 'Approach' },
+  { id: 'toolbox', label: 'Toolbox' },
+  { id: 'contact', label: 'Contact' },
+];
 
 /** What kind of work I'm open to — shown in Contact as three quick-scan rows. */
 export const openTo = [
@@ -64,6 +99,9 @@ export interface Capability {
   proof: { figure: string; label: string };
   visual: VisualId;
 }
+
+/** Anchor id of a capability block on the page (also used by the command palette). */
+export const capabilityAnchor = (id: string) => `cap-${id}`;
 
 export const capabilities: Capability[] = [
   {

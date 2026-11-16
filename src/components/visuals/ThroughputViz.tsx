@@ -1,29 +1,25 @@
-import { useEffect, useState, type CSSProperties } from 'react';
-import { prefersReducedMotion, useSeen } from '../../hooks';
+import { useEffect, useState } from 'react';
+import { useSeen } from '../../hooks';
+import { prefersReducedMotion } from '../../lib/dom';
+import { formatCount } from '../../lib/format';
+import { mulberry32 } from '../../lib/random';
+import { cssVars } from '../../lib/style';
+import { VizFrame } from './VizFrame';
 
 const BARS = 42;
 const TICK_MS = 650;
 const MAX_RPS = 3600;
 const TARGET_RPS = 3000;
-
-/** Deterministic PRNG so the server and the first client render draw the same chart. */
-function mulberry32(seed: number) {
-  let a = seed;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** Bars above this are drawn as bursts, and the footer reports autoscaling. */
+const BURST_RPS = 2900;
 
 interface Sample {
   rps: number;
   p95: number;
 }
 
+/** One second of simulated load: a base level with a gentle wave, noise and an occasional burst. */
 function sample(rand: () => number, i: number): Sample {
-  // Base load with a gentle wave, noise, and an occasional burst.
   const wave = Math.sin(i / 6) * 220;
   const burst = rand() > 0.93 ? 700 + rand() * 300 : 0;
   const rps = Math.round(2350 + wave + (rand() - 0.5) * 260 + burst);
@@ -31,19 +27,20 @@ function sample(rand: () => number, i: number): Sample {
   return { rps, p95 };
 }
 
-function initial(): Sample[] {
+/** Same seed on server and client, so the prerendered chart hydrates without a mismatch. */
+function initialSamples(): Sample[] {
   const rand = mulberry32(7);
   return Array.from({ length: BARS }, (_, i) => sample(rand, i));
 }
 
 /** A load-test dashboard: RPS bars stream in, p95 and error rate stay boring — which is the point. */
 export function ThroughputViz() {
-  const [ref, seen] = useSeen<HTMLDivElement>(0.4);
-  const [data, setData] = useState<Sample[]>(initial);
+  const [ref, seen] = useSeen<HTMLDivElement>();
+  const [data, setData] = useState<Sample[]>(initialSamples);
 
   useEffect(() => {
     if (!seen || prefersReducedMotion()) return;
-    const rand = mulberry32(Date.now() % 100000);
+    const rand = mulberry32(Date.now() % 100_000);
     let i = BARS;
     const id = window.setInterval(() => {
       i += 1;
@@ -53,18 +50,20 @@ export function ThroughputViz() {
   }, [seen]);
 
   const last = data[data.length - 1] ?? { rps: 0, p95: 0 };
-  const burst = last.rps > 2900;
+  const bursting = last.rps > BURST_RPS;
 
   return (
-    <div ref={ref} className="viz viz--throughput" role="img" aria-label="Animation: simulated load test streaming requests per second with steady p95 latency and zero errors.">
-      <div className="viz__head mono">
-        <span>load test · simulated</span>
-        <span>open-model ramp</span>
-      </div>
+    <VizFrame
+      ref={ref}
+      variant="throughput"
+      label="Animation: simulated load test streaming requests per second with steady p95 latency and zero errors."
+      head={['load test · simulated', 'open-model ramp']}
+      foot={{ ok: !bursting, start: bursting ? 'burst → autoscaling +2 pods' : 'steady state', end: 'kafka lag 0 · db pool 41%' }}
+    >
       <div className="tput__stats">
         <div>
           <span className="tput__label mono">req/s</span>
-          <span className="tput__value">{last.rps.toLocaleString('en-US')}</span>
+          <span className="tput__value">{formatCount(last.rps)}</span>
         </div>
         <div>
           <span className="tput__label mono">p95</span>
@@ -77,20 +76,16 @@ export function ThroughputViz() {
       </div>
       <div className="tput__chart" aria-hidden="true">
         <span className="tput__target mono" style={{ bottom: `${(TARGET_RPS / MAX_RPS) * 100}%` }}>
-          target 3k rps
+          target {TARGET_RPS / 1000}k rps
         </span>
         {data.map((d, i) => (
           <span
             key={i}
-            className={`tput__bar ${d.rps > 2900 ? 'is-burst' : ''}`}
-            style={{ '--h': Math.min(1, d.rps / MAX_RPS) } as CSSProperties}
+            className={d.rps > BURST_RPS ? 'tput__bar is-burst' : 'tput__bar'}
+            style={cssVars({ '--h': Math.min(1, d.rps / MAX_RPS) })}
           />
         ))}
       </div>
-      <div className={`viz__foot mono ${burst ? '' : 'is-ok'}`}>
-        <span>{burst ? 'burst → autoscaling +2 pods' : 'steady state'}</span>
-        <span>kafka lag 0 · db pool 41%</span>
-      </div>
-    </div>
+    </VizFrame>
   );
 }

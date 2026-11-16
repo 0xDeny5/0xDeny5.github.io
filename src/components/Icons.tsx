@@ -62,12 +62,6 @@ export const ArrowRightIcon = (p: IconProps) => (
   </svg>
 );
 
-export const DownloadIcon = (p: IconProps) => (
-  <svg {...stroke} {...p}>
-    <path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16" />
-  </svg>
-);
-
 export const CopyIcon = (p: IconProps) => (
   <svg {...stroke} {...p}>
     <rect x="9" y="9" width="12" height="12" rx="2" />
@@ -78,13 +72,6 @@ export const CopyIcon = (p: IconProps) => (
 export const CheckIcon = (p: IconProps) => (
   <svg {...stroke} {...p}>
     <path d="m5 12 5 5L20 7" />
-  </svg>
-);
-
-export const MapPinIcon = (p: IconProps) => (
-  <svg {...stroke} {...p}>
-    <path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11Z" />
-    <circle cx="12" cy="10" r="2.5" />
   </svg>
 );
 
@@ -114,12 +101,6 @@ export const SearchIcon = (p: IconProps) => (
   </svg>
 );
 
-export const PlusIcon = (p: IconProps) => (
-  <svg {...stroke} {...p}>
-    <path d="M12 5v14M5 12h14" />
-  </svg>
-);
-
 export const ArrowUpIcon = (p: IconProps) => (
   <svg {...stroke} {...p}>
     <path d="M12 19V5M6 11l6-6 6 6" />
@@ -129,5 +110,12 @@ export const ArrowUpIcon = (p: IconProps) => (
 export const CloseIcon = (p: IconProps) => (
   <svg {...stroke} {...p}>
     <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);
+
+export const KeyIcon = (p: IconProps) => (
+  <svg {...stroke} {...p}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="M10.8 12.2 20 3M16 7l3 3M14 9l2 2" />
   </svg>
 );

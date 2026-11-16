@@ -1,5 +1,8 @@
-import type { CSSProperties } from 'react';
 import { useLoop, useSeen } from '../../hooks';
+import { pad } from '../../lib/format';
+import { cssVars } from '../../lib/style';
+import { KeyIcon } from '../Icons';
+import { VizFrame } from './VizFrame';
 
 /**
  * Bank-grade key management, told around a 3D hardware security module. Five principles play in
@@ -14,55 +17,45 @@ const PRINCIPLES = [
   { id: 'audit', title: 'Audit', caption: 'Every key use is logged, and opening the case wipes the keys. Trust enforced by hardware.' },
 ] as const;
 
+type Principle = (typeof PRINCIPLES)[number];
+
+const LAST_PRINCIPLE: Principle = PRINCIPLES[PRINCIPLES.length - 1] ?? PRINCIPLES[0];
 const PLATES = ['Wallet keys', 'Key-encryption keys', 'Master key'];
 const OFFICERS = 3;
 const QUORUM = 2;
 const STEP_MS = 4600;
 
-function KeyGlyph({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="8" cy="15" r="4" />
-      <path d="M10.8 12.2 20 3M16 7l3 3M14 9l2 2" />
-    </svg>
-  );
-}
+const stepClass = (i: number, step: number) => (i === step ? 'is-active' : i < step ? 'is-done' : undefined);
 
 export function CustodyViz() {
-  const [ref, seen] = useSeen<HTMLDivElement>(0.4);
+  const [ref, seen] = useSeen<HTMLDivElement>();
   const step = useLoop(PRINCIPLES.length, seen, STEP_MS, STEP_MS);
-  const current = PRINCIPLES[step] ?? PRINCIPLES[PRINCIPLES.length - 1];
-  const id = current?.id ?? 'audit';
+  const current: Principle = PRINCIPLES[step] ?? LAST_PRINCIPLE;
 
   return (
-    <div
+    <VizFrame
       ref={ref}
-      className="viz viz--hsm"
-      role="img"
-      aria-label="Animation of a hardware security module: apps send in a hash and get back only a signature; the key cannot be exported; keys are layered from a master key down to wallet keys; admin changes need two of three officers; every use is audited and tampering wipes the keys."
+      variant="hsm"
+      label="Animation of a hardware security module: apps send in a hash and get back only a signature; the key cannot be exported; keys are layered from a master key down to wallet keys; admin changes need two of three officers; every use is audited and tampering wipes the keys."
+      head={['hardware security module', 'bank-grade key management']}
     >
-      <div className="viz__head mono">
-        <span>hardware security module</span>
-        <span>bank-grade key management</span>
-      </div>
-
-      <ol className="hsmx__steps mono" style={{ '--step-ms': `${STEP_MS}ms` } as CSSProperties}>
+      <ol className="hsmx__steps mono" style={cssVars({ '--step-ms': `${STEP_MS}ms` })}>
         {PRINCIPLES.map((p, i) => (
-          <li key={p.id} className={i === step ? 'is-active' : i < step ? 'is-done' : ''}>
-            <span>{String(i + 1).padStart(2, '0')}</span> {p.title}
+          <li key={p.id} className={stepClass(i, step)}>
+            <span>{pad(i + 1)}</span> {p.title}
             <i />
           </li>
         ))}
       </ol>
 
-      <div className={`hsmx__stage is-${id}`} aria-hidden="true">
-        {/* Beams into and out of the box */}
+      {/* The stage class (`is-sign`, `is-isolate`, …) drives every animation inside it from CSS. */}
+      <div className={`hsmx__stage is-${current.id}`} aria-hidden="true">
         <span className="hsmx__beam hsmx__beam--in">
           <span className="hsmx__beam-label mono">hash</span>
           <span className="hsmx__dot" />
         </span>
         <span className="hsmx__beam hsmx__beam--out">
-          <span className="hsmx__beam-label mono">{id === 'isolate' ? 'export ✗ refused' : 'signature'}</span>
+          <span className="hsmx__beam-label mono">{current.id === 'isolate' ? 'export ✗ refused' : 'signature'}</span>
           <span className="hsmx__dot" />
         </span>
 
@@ -79,7 +72,7 @@ export function CustodyViz() {
             </div>
             <div className="hsmx__face hsmx__face--top">
               <span className="hsmx__key">
-                <KeyGlyph />
+                <KeyIcon width={24} height={24} />
               </span>
             </div>
             <div className="hsmx__face hsmx__face--right" />
@@ -88,7 +81,7 @@ export function CustodyViz() {
             <div className="hsmx__face hsmx__face--bottom" />
 
             {PLATES.map((name, i) => (
-              <div key={name} className="hsmx__plate" style={{ '--n': i } as CSSProperties}>
+              <div key={name} className="hsmx__plate" style={cssVars({ '--n': i })}>
                 <span className="mono">{name}</span>
               </div>
             ))}
@@ -98,8 +91,8 @@ export function CustodyViz() {
 
         <div className="hsmx__officers mono">
           {Array.from({ length: OFFICERS }, (_, i) => (
-            <span key={i} className={i < QUORUM ? 'is-signer' : ''} style={{ '--n': i } as CSSProperties}>
-              <KeyGlyph size={14} />
+            <span key={i} className={i < QUORUM ? 'is-signer' : undefined} style={cssVars({ '--n': i })}>
+              <KeyIcon width={14} height={14} />
             </span>
           ))}
           <em>
@@ -114,7 +107,7 @@ export function CustodyViz() {
         </div>
       </div>
 
-      <p className="hsmx__caption">{current?.caption}</p>
-    </div>
+      <p className="hsmx__caption">{current.caption}</p>
+    </VizFrame>
   );
 }
