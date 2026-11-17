@@ -1207,73 +1207,204 @@ em {
   color: var(--up);
 }
 
+/* Plain-language line under a visual explaining the current step. */
+.viz__caption {
+  min-height: 3.2em;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 @media (max-width: 479px) {
   .viz {
     padding: 18px;
   }
 }
 
-/* Ledger */
-.ledgerviz {
+/* Race condition: two withdrawals, one balance, never an overdraft */
+.race {
   display: grid;
-  align-content: start;
-  gap: 2px;
-  margin: 16px 0;
-  font-size: 12px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(28px, 0.45fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 0;
+  margin: 22px 0 4px;
 }
 
-.ledgerviz__row {
+.race__req {
+  grid-column: 1;
   display: grid;
-  grid-template-columns: 1fr 84px 84px;
-  gap: 12px;
-  padding: 4px 0;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  transition:
+    border-color 0.3s,
+    background-color 0.3s;
 }
 
-.ledgerviz__row span:not(:first-child) {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.race__req.is-ok {
+  border-color: color-mix(in srgb, var(--up) 55%, transparent);
+  background: color-mix(in srgb, var(--up) 8%, transparent);
 }
 
-.ledgerviz__row--head {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+.race__req.is-bad {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
+.race__label {
   font-size: 10.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
 
-.ledgerviz__entry {
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--line-soft);
-  opacity: 0.12;
-  transform: translateX(-6px);
-  transition:
-    opacity 0.45s,
-    transform 0.45s var(--ease-out);
+.race__amount {
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
 }
 
-.ledgerviz__entry.is-shown {
-  opacity: 1;
-  transform: none;
+.race__status {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  transition: color 0.3s;
 }
 
-.ledgerviz__memo {
-  margin-bottom: 2px;
-  font-size: 10.5px;
+.race__req.is-ok .race__status {
+  color: var(--up);
+}
+
+.race__req.is-bad .race__status {
+  color: var(--danger);
+}
+
+.race__lane {
+  grid-column: 2;
+  position: relative;
+  border-top: 1px dashed var(--line);
+}
+
+.race__dot {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  opacity: 0;
+}
+
+.race__lane.is-sending .race__dot {
+  animation: race-dot 1.3s var(--ease) both;
+}
+
+@keyframes race-dot {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 9px);
+    opacity: 1;
+  }
+}
+
+.race__account {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-height: 100%;
+  padding: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  transition: border-color 0.3s;
+}
+
+.race__account.is-locked {
+  border-color: var(--accent);
+}
+
+.race__balance {
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  animation: race-flash 0.9s var(--ease-out);
+}
+
+@keyframes race-flash {
+  from {
+    color: var(--accent);
+    transform: translateY(-4px);
+  }
+}
+
+.race__lock {
+  font-size: 11px;
+  color: var(--ink-3);
+  transition: color 0.3s;
+}
+
+.race__account.is-locked .race__lock {
+  color: var(--accent);
+}
+
+.race__guard {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.race__guard b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.race__result {
   color: var(--ink-3);
 }
 
-/* Credit lines are indented, as in a paper journal. */
-.ledgerviz__entry .ledgerviz__row + .ledgerviz__row span:first-child {
-  padding-left: 18px;
+.race__result.is-ok {
+  color: var(--up);
 }
 
-.ledgerviz__row--total {
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 2px solid var(--ink);
-  font-weight: 600;
+.race__result.is-bad {
+  color: var(--danger);
+}
+
+@media (max-width: 519px) {
+  .race__req,
+  .race__account {
+    padding: 10px;
+  }
+
+  .race__status {
+    font-size: 10px;
+  }
+
+  .race__amount {
+    font-size: 1rem;
+  }
 }
 
 /* Payment state machine */
@@ -1893,16 +2024,6 @@ em {
   60% {
     transform: translateX(-2px);
   }
-}
-
-.hsmx__caption {
-  min-height: 3.2em;
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--line);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--ink);
 }
 
 @media (max-width: 719px) {

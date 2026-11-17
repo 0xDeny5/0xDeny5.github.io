@@ -21,6 +21,10 @@ describe('formatAmount', () => {
     expect(formatAmount(1204551.2)).toBe('1,204,551.20');
   });
 
+  it('never prints a negative zero', () => {
+    expect(formatAmount(-0)).toBe('0.00');
+  });
+
   it('rounds to cents', () => {
     expect(formatAmount(4180.125)).toMatch(/^4,180\.1[23]$/);
     expect(formatAmount(2.999)).toBe('3.00');

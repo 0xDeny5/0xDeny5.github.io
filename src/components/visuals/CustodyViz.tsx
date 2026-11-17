@@ -107,7 +107,7 @@ export function CustodyViz() {
         </div>
       </div>
 
-      <p className="hsmx__caption">{current.caption}</p>
+      <p className="viz__caption">{current.caption}</p>
     </VizFrame>
   );
 }

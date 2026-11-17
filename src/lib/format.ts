@@ -8,7 +8,8 @@ const COUNT = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 /** Money-style amount: grouped, exactly two decimals. `4182.3` → `"4,182.30"`. */
 export function formatAmount(n: number): string {
-  return AMOUNT.format(n);
+  // `+ 0` turns -0 (e.g. from negating a zero balance) into 0, so it never prints as "-0.00".
+  return AMOUNT.format(n + 0);
 }
 
 /** Whole number with grouping. `2875` → `"2,875"`. */
